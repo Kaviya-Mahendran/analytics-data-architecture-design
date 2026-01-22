@@ -35,7 +35,7 @@ Limitations & Ethics
 
 Reflection & Future Enhancements
 
-🏗 Architecture Overview
+Architecture Overview
 
 This architecture follows a layered analytics design, separating ingestion, transformation, modelling, and consumption concerns.
 
