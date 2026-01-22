@@ -1,77 +1,183 @@
-Designing Analytics Data Architecture as a Long Term System
-Overview
+**Analytics Data Architecture Design**
 
-As analytics capabilities mature, many organisations encounter structural problems that are not caused by tooling, but by design decisions made early on. These include inconsistent metrics, unclear data ownership, fragile dashboards, and architectures that cannot support growth into advanced analytics or machine learning.
+**Designing a Scalable, Governed Analytics Foundation**
 
-This repository presents a reference analytics data architecture focused on long term reliability, clarity, and scalability. Rather than demonstrating a specific implementation, the project explains how and why analytics architectures should be designed to support reporting, exploration, and predictive use cases over time.
+
+
+**Overview**
+
+
+Analytics systems often fail not because of poor dashboards, but because the underlying data architecture is fragile, inconsistent, or difficult to govern. As organisations grow, ad-hoc tables and tightly coupled pipelines quickly become barriers to reliable analytics and decision-making.
+
+This repository presents a reference analytics data architecture designed for small to mid-size data teams. It demonstrates how to structure data for long-term reliability using layered storage, star schema modelling, metadata documentation, and SQL-based validation.
+
+The goal of this project is not to build dashboards, but to show how analytics systems should be designed as durable products, not one-off outputs.
 
 Although implementations vary across organisations, these principles apply broadly to most data analytics environments.
 
-Architecture at a Glance
+**Table of Contents**
 
-This architecture is built around three core ideas:
-
-Layered data storage to separate raw data from analytics ready datasets
-
-Explicit data modelling using a star schema
-
-Documented metadata and ownership to support trust and governance
-
-Together, these components allow analytics to function as a product, not a collection of dashboards.
+Architecture Overview
 
 Layered Data Architecture
 
-The architecture follows a clear, layered structure:
+Star Schema Design
 
+SQL Schema Implementation
+
+Metadata & Data Catalog
+
+Architecture Justification
+
+Validation & How to Run
+
+Limitations & Ethics
+
+Reflection & Future Enhancements
+
+🏗 Architecture Overview
+
+This architecture follows a layered analytics design, separating ingestion, transformation, modelling, and consumption concerns.
+
+High-level flow:
+
+Source Systems
+      ↓
+Raw Data Layer
+      ↓
+Cleaned / Conformed Layer
+      ↓
+Analytics Model (Star Schema)
+      ↓
+Dashboards / ML / Reporting
+
+
+This separation reduces coupling, improves data quality control, and allows analytics logic to evolve without breaking upstream systems.
+
+See diagrams in: /diagrams/
+
+Layered Data Architecture
 1. Raw Layer
 
-Stores immutable extracts from source systems
+Immutable ingestion of source data
 
-Preserves original values for audit and reprocessing
+No transformations applied
 
-No transformations or business logic applied
+Preserves original structure for auditability
 
 2. Cleaned Layer
 
-Standardised column names and data types
+Standardised formats
 
-Missing values handled explicitly
+Null handling and type corrections
 
-Basic validation rules enforced
+De-duplication logic applied
 
-3. Analytics Ready Layer
+3. Analytics Layer
 
-Business logic applied once and reused
+Business-friendly models
 
-Fact and dimension tables created
+Optimised for querying and reporting
 
-Metrics become consistent across reports
+Enforces relationships and grain consistency
 
-4. Consumption Layer
+This approach mirrors modern lakehouse and warehouse-centric architectures used across the UK digital ecosystem.
 
-BI dashboards
+**Star Schema Design**
 
-SQL analytics
+The analytics layer uses a star schema, optimised for analytical queries and KPI consistency.
 
-Machine learning pipelines
+Dimensions
 
-This separation reduces downstream risk and allows teams to evolve analytics without corrupting source data.
+dim_customer — stable descriptive attributes
 
-Star Schema Design (Analytics Layer)
+dim_date — calendar and reporting logic
 
-At the analytics ready layer, data is modelled using a star schema.
-
-Core Tables
+dim_channel — interaction or acquisition source
 
 Fact Table
 
-fact_transactions
+fact_transactions — transactional or behavioural events
 
-One row per transaction (clearly defined grain)
+This design:
 
-Stores numeric measures such as transaction count and value
+simplifies joins
 
-Dimension Tables
+improves query performance
+
+ensures metrics are calculated consistently across teams
+
+SQL definitions: /sql/
+
+Diagram: /diagrams/star_schema.png
+
+SQL Schema Implementation
+
+All schemas are implemented using portable SQL, designed to run locally in SQLite for validation.
+
+Example (dimension table):
+
+CREATE TABLE dim_customer (
+    customer_key INTEGER PRIMARY KEY,
+    customer_id TEXT,
+    customer_segment TEXT,
+    is_active INTEGER
+);
+
+
+Foreign key constraints are used in the fact table to enforce referential integrity.
+
+This ensures analytics outputs cannot silently drift due to broken joins or inconsistent keys.
+
+**Metadata & Data Catalog**
+
+A lightweight metadata catalog is included to document:
+
+table purpose
+
+column definitions
+
+data ownership assumptions
+
+refresh expectations
+
+**Location: /metadata/**
+
+This documentation layer supports:
+
+onboarding of new analysts
+
+governance reviews
+
+future handover or scale-out
+
+Metadata is treated as a first-class artefact, not an afterthought.
+
+**Validation & How to Run Locally**
+
+You can validate the full architecture locally using SQLite.
+
+Steps
+
+From the repository root:
+
+sqlite3 analytics.db
+
+
+Then execute schemas in order:
+
+.read sql/dim_customer.sql
+.read sql/dim_date.sql
+.read sql/dim_channel.sql
+.read sql/fact_transactions.sql
+
+
+To verify:
+
+SELECT name FROM sqlite_master WHERE type='table';
+
+
+Expected tables:
 
 dim_customer
 
@@ -79,88 +185,64 @@ dim_date
 
 dim_channel
 
-Why a Star Schema?
+fact_transactions
 
-Ensures metric definitions are consistent
+This sequential execution validates dependencies and referential integrity.
 
-Improves query performance for BI tools
+**Limitations & Ethics**
 
-Simplifies joins for analysts
+This project focuses on structural design, not live production data.
 
-Reduces duplication of business logic
+Sample schemas avoid sensitive personal attributes
 
-This modelling approach makes analytics easier to scale as datasets grow.
+No real customer or donor data is used
 
-SQL Schema (Example)
+Privacy-impact considerations are documented but not enforced at runtime
 
-Below is a simplified example of how the analytics schema is defined.
+In real environments, this architecture should be paired with:
 
-Dimension Table
-CREATE TABLE dim_customer (
-    customer_key INT PRIMARY KEY,
-    customer_id VARCHAR(50),
-    signup_channel VARCHAR(20),
-    age_band VARCHAR(20),
-    is_active BOOLEAN
-);
+access controls
 
-Fact Table
-CREATE TABLE fact_transactions (
-    transaction_key INT PRIMARY KEY,
-    customer_key INT,
-    date_key INT,
-    channel_key INT,
-    transaction_count INT,
-    transaction_value DECIMAL(10,2),
-    FOREIGN KEY (customer_key) REFERENCES dim_customer(customer_key)
-);
+PII masking
 
+retention policies
 
-Using surrogate keys decouples analytics from upstream system changes and supports slowly changing attributes.
+audit logging
 
-Metadata & Data Catalog
+Responsible data architecture extends beyond schema design into governance and compliance.
 
-Analytics systems often fail not because data is wrong, but because people do not trust or understand it.
+**Architecture Justification**
 
-This architecture includes a simple metadata layer documenting:
+This design was chosen to prioritise:
 
-Column definitions
+Scalability — supports growth without re-modelling
 
-Data owners
+Consistency — single source of truth for metrics
 
-Refresh cadence
+Governance — clear ownership and documentation
 
-Sensitivity classification
+Maintainability — changes isolated to specific layers
 
-Example Metadata Entry
-Field	Description	Owner	Sensitivity
-customer_key	Surrogate customer identifier	Analytics	Low
-transaction_value	Monetary value per transaction	Analytics	Medium
+Rather than optimising for short-term delivery speed, the architecture optimises for long-term analytical reliability.
 
-Documented metadata improves onboarding, reduces dependency on tribal knowledge, and supports responsible data usage.
+**Reflection & Future Enhancements**
 
-Architecture Justification
+Designing analytics architecture reinforced the importance of thinking beyond tools and focusing on system behaviour over time.
 
-This design intentionally prioritises clarity and reproducibility over short term speed.
+Future enhancements could include:
 
-Key trade offs considered:
+automated schema validation tests
 
-Star schema over wide tables to reduce metric drift
+data quality checks per layer
 
-Layered storage over single datasets to enable reprocessing
+integration with a BI semantic layer
 
-Explicit modelling over ad hoc transformations to improve trust
+role-based access controls
 
-While this approach introduces additional design effort upfront, it significantly reduces rework as analytics use cases grow and become more complex.
+Strong analytics systems are built intentionally, not incrementally.
 
-Validation & Visual Outputs
+**Final note**
 
-The SQL schemas were executed and validated locally using SQLite. Visual verification includes schema inspection, foreign key validation, and sample analytical queries. Architecture and data flow diagrams illustrate how the system supports scalable analytics.
-
-Reflection
-
-Treating analytics as a long term system changes how data teams operate. Clear data models, layered architectures, and documented metadata create a foundation that supports growth, governance, and advanced analytics without constant rework.
+This repository is intended as a reference design, demonstrating architectural thinking rather than a single use case.
 
 Although implementations vary across organisations, these principles apply broadly to most data analytics environments.
-
-All SQL schemas were executed sequentially in SQLite to validate dependencies and referential integrity.
