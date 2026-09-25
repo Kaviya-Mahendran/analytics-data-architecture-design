@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  schema-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate SQL schema in SQLite
+        run: |
+          python - <<'PY'
+          import sqlite3
+          from pathlib import Path
+
+          root = Path(".")
+          db = sqlite3.connect(":memory:")
+          db.execute("PRAGMA foreign_keys = ON")
+
+          for name in [
+              "dim_customer.sql",
+              "dim_date.sql",
+              "dim_channel.sql",
+              "fact_transactions.sql",
+          ]:
+              sql = (root / "sql" / name).read_text(encoding="utf-8")
+              db.executescript(sql)
+
+          expected = {
+              "dim_customer",
+              "dim_date",
+              "dim_channel",
+              "fact_transactions",
+          }
+          actual = {
+              row[0]
+              for row in db.execute(
+                  "SELECT name FROM sqlite_master WHERE type='table'"
+              )
+          }
+
+          missing = expected - actual
+          if missing:
+              raise SystemExit(f"Missing expected tables: {sorted(missing)}")
+
+          print("SQLite schema validation passed.")
+          PY
