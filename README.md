@@ -130,6 +130,11 @@ dim_channel
 fact_transactions
 ```
 
+## Visual outputs
+
+- [Architecture diagrams](./diagrams/) — system and data-flow visuals.
+- [Validation outputs](./outputs/) — schema and analytical validation artefacts.
+
 ## Architecture decisions
 
 | Decision | Rationale |
