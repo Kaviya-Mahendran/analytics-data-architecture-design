@@ -2,7 +2,7 @@
 -- Purpose: Store stable, descriptive customer attributes
 -- Grain: One row per customer (slowly changing)
 
-CREATE TABLE dim_customers (
+CREATE TABLE dim_customer (
     customer_key        INT PRIMARY KEY,
     customer_id         VARCHAR(50) NOT NULL,
     signup_channel      VARCHAR(20),
