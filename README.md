@@ -1,248 +1,171 @@
-**Analytics Data Architecture Design**
+# Analytics Data Architecture Design
 
-**Designing a Scalable, Governed Analytics Foundation**
+> A reference analytics architecture demonstrating layered data design, star schema modelling, metadata, SQL validation and governance principles.
 
+[![SQL](https://img.shields.io/badge/SQL-Analytics-blue)](https://www.sqlite.org/)
+[![Architecture](https://img.shields.io/badge/Focus-Data%20Architecture%20%7C%20Modelling%20%7C%20Governance-brightgreen)](https://github.com/Kaviya-Mahendran/analytics-data-architecture-design)
 
+## Why this project exists
 
-**Overview**
+Analytics systems often fail not because of poor dashboards, but because the underlying data architecture is fragile, inconsistent or difficult to govern.
 
+This project presents a reference architecture for a small-to-mid-size data team. It demonstrates how to separate ingestion, transformation, modelling and consumption while maintaining clear data grain, relationships and metadata.
 
-Analytics systems often fail not because of poor dashboards, but because the underlying data architecture is fragile, inconsistent, or difficult to govern. As organisations grow, ad-hoc tables and tightly coupled pipelines quickly become barriers to reliable analytics and decision-making.
+The goal is to demonstrate **architectural thinking**, not simply produce a dashboard.
 
-This repository presents a reference analytics data architecture designed for small to mid-size data teams. It demonstrates how to structure data for long-term reliability using layered storage, star schema modelling, metadata documentation, and SQL-based validation.
+## Architecture at a glance
 
-The goal of this project is not to build dashboards, but to show how analytics systems should be designed as durable products, not one-off outputs.
+```mermaid
+flowchart LR
+    A[Source Systems] --> B[Raw Data Layer]
+    B --> C[Cleaned / Conformed Layer]
+    C --> D[Analytics Layer]
+    D --> E[BI / Reporting]
+    D --> F[ML / Advanced Analytics]
+    G[Metadata & Governance] -.-> B
+    G -.-> C
+    G -.-> D
+```
 
-Although implementations vary across organisations, these principles apply broadly to most data analytics environments.
+## Layered data architecture
 
-**Table of Contents**
+### 1. Raw layer
+- Immutable ingestion of source data
+- Original structure preserved
+- Supports auditability and reprocessing
 
-Architecture Overview
+### 2. Cleaned / conformed layer
+- Standardised formats
+- Null and type handling
+- De-duplication
+- Consistent business keys
 
-Layered Data Architecture
+### 3. Analytics layer
+- Business-friendly models
+- Defined table grain
+- Reusable dimensions
+- Consistent KPI logic
 
-Star Schema Design
+## Star schema
 
-SQL Schema Implementation
+The analytics layer uses a star schema designed for analytical querying.
 
-Metadata & Data Catalog
+**Dimensions**
+- `dim_customer`
+- `dim_date`
+- `dim_channel`
 
-Architecture Justification
+**Fact**
+- `fact_transactions`
 
-Validation & How to Run
+```mermaid
+erDiagram
+    DIM_CUSTOMER ||--o{ FACT_TRANSACTIONS : customer_key
+    DIM_DATE ||--o{ FACT_TRANSACTIONS : date_key
+    DIM_CHANNEL ||--o{ FACT_TRANSACTIONS : channel_key
+```
 
-Limitations & Ethics
+The model is designed to make business questions easier to answer while reducing inconsistent metric definitions.
 
-Reflection & Future Enhancements
+## SQL implementation
 
-Architecture Overview
+Schemas are implemented using portable SQL and can be validated locally with SQLite.
 
-This architecture follows a layered analytics design, separating ingestion, transformation, modelling, and consumption concerns.
+Example:
 
-High-level flow:
-
-Source Systems
-      ↓
-Raw Data Layer
-      ↓
-Cleaned / Conformed Layer
-      ↓
-Analytics Model (Star Schema)
-      ↓
-Dashboards / ML / Reporting
-
-
-This separation reduces coupling, improves data quality control, and allows analytics logic to evolve without breaking upstream systems.
-
-See diagrams in: /diagrams/
-
-Layered Data Architecture
-1. Raw Layer
-
-Immutable ingestion of source data
-
-No transformations applied
-
-Preserves original structure for auditability
-
-2. Cleaned Layer
-
-Standardised formats
-
-Null handling and type corrections
-
-De-duplication logic applied
-
-3. Analytics Layer
-
-Business-friendly models
-
-Optimised for querying and reporting
-
-Enforces relationships and grain consistency
-
-This approach mirrors modern lakehouse and warehouse-centric architectures used across the UK digital ecosystem.
-
-**Star Schema Design**
-
-The analytics layer uses a star schema, optimised for analytical queries and KPI consistency.
-
-Dimensions
-
-dim_customer — stable descriptive attributes
-
-dim_date — calendar and reporting logic
-
-dim_channel — interaction or acquisition source
-
-Fact Table
-
-fact_transactions — transactional or behavioural events
-
-This design:
-
-simplifies joins
-
-improves query performance
-
-ensures metrics are calculated consistently across teams
-
-SQL definitions: /sql/
-
-Diagram: /diagrams/star_schema.png
-
-SQL Schema Implementation
-
-All schemas are implemented using portable SQL, designed to run locally in SQLite for validation.
-
-Example (dimension table):
-
+```sql
 CREATE TABLE dim_customer (
     customer_key INTEGER PRIMARY KEY,
     customer_id TEXT,
     customer_segment TEXT,
     is_active INTEGER
 );
+```
 
+Foreign-key relationships in the fact model support referential-integrity checks.
 
-Foreign key constraints are used in the fact table to enforce referential integrity.
+## Metadata & data catalog
 
-This ensures analytics outputs cannot silently drift due to broken joins or inconsistent keys.
+The `metadata/` directory documents:
 
-**Metadata & Data Catalog**
+- table purpose
+- column definitions
+- ownership assumptions
+- refresh expectations
+- governance considerations
 
-A lightweight metadata catalog is included to document:
+Metadata is treated as a first-class engineering artefact.
 
-table purpose
-
-column definitions
-
-data ownership assumptions
-
-refresh expectations
-
-**Location: /metadata/**
-
-This documentation layer supports:
-
-onboarding of new analysts
-
-governance reviews
-
-future handover or scale-out
-
-Metadata is treated as a first-class artefact, not an afterthought.
-
-**Validation & How to Run Locally**
-
-You can validate the full architecture locally using SQLite.
-
-Steps
+## Validation
 
 From the repository root:
 
+```bash
 sqlite3 analytics.db
+```
 
+Then execute the schemas in dependency order:
 
-Then execute schemas in order:
-
+```text
 .read sql/dim_customer.sql
 .read sql/dim_date.sql
 .read sql/dim_channel.sql
 .read sql/fact_transactions.sql
+```
 
+Validate the resulting tables:
 
-To verify:
-
-SELECT name FROM sqlite_master WHERE type='table';
-
+```sql
+SELECT name
+FROM sqlite_master
+WHERE type = 'table';
+```
 
 Expected tables:
 
+```text
 dim_customer
-
 dim_date
-
 dim_channel
-
 fact_transactions
+```
 
-This sequential execution validates dependencies and referential integrity.
+## Architecture decisions
 
-**Limitations & Ethics**
+| Decision | Rationale |
+|---|---|
+| Layered architecture | Separates ingestion, transformation and consumption |
+| Star schema | Simplifies analytical queries and KPI consistency |
+| Metadata catalogue | Improves discoverability and handover |
+| SQL validation | Makes structural assumptions testable |
+| Local SQLite validation | Keeps the reference design reproducible |
 
-This project focuses on structural design, not live production data.
+## Governance & privacy
 
-Sample schemas avoid sensitive personal attributes
+This repository uses sample schemas and does not contain real customer or donor data.
 
-No real customer or donor data is used
+A production implementation would additionally require:
 
-Privacy-impact considerations are documented but not enforced at runtime
+- access controls
+- PII classification and masking
+- retention policies
+- audit logging
+- data ownership
+- lineage
+- quality monitoring
 
-In real environments, this architecture should be paired with:
+## Limitations
 
-access controls
+This is a reference architecture rather than a production data platform. It does not currently implement a cloud warehouse, orchestration framework or enterprise semantic layer.
 
-PII masking
+## Roadmap
 
-retention policies
+- Automated schema and data-quality tests
+- Data lineage documentation
+- BI semantic-layer integration
+- Role-based access controls
+- Incremental ingestion patterns
+- Cloud warehouse implementation
+- CI validation
 
-audit logging
-
-Responsible data architecture extends beyond schema design into governance and compliance.
-
-**Architecture Justification**
-
-This design was chosen to prioritise:
-
-Scalability — supports growth without re-modelling
-
-Consistency — single source of truth for metrics
-
-Governance — clear ownership and documentation
-
-Maintainability — changes isolated to specific layers
-
-Rather than optimising for short-term delivery speed, the architecture optimises for long-term analytical reliability.
-
-**Reflection & Future Enhancements**
-
-Designing analytics architecture reinforced the importance of thinking beyond tools and focusing on system behaviour over time.
-
-Future enhancements could include:
-
-automated schema validation tests
-
-data quality checks per layer
-
-integration with a BI semantic layer
-
-role-based access controls
-
-Strong analytics systems are built intentionally, not incrementally.
-
-**Final note**
-
-This repository is intended as a reference design, demonstrating architectural thinking rather than a single use case.
-
-Although implementations vary across organisations, these principles apply broadly to most data analytics environments.
+**Focus:** SQL · data modelling · analytics architecture · governance · data quality · BI foundations
